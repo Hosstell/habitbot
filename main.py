@@ -1,10 +1,13 @@
+import io
 import logging
 import os
 import sqlite3
-from datetime import date, datetime, time as dtime
+from datetime import date, datetime, time as dtime, timedelta
 import threading
 import telebot
 from telebot import types
+
+from heatmap import plot_habit_heatmap_binary
 
 # Logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -12,6 +15,10 @@ logger = logging.getLogger(__name__)
 
 # Bot token
 token = os.getenv("BOT_TOKEN")
+
+if not token:
+    raise "NO TOKEN"
+
 bot = telebot.TeleBot(token)
 
 # Database file path
@@ -69,12 +76,16 @@ def send_main_menu(uid, text=None, mid=None):
     markup.add(types.InlineKeyboardButton('➕ Создать привычку', callback_data='menu:create'))
     markup.add(types.InlineKeyboardButton('📋 Список привычек', callback_data='menu:list'))
     display_text = text or '👋 Привет! Выберите действие:'
-    if mid:
-        bot.edit_message_text(display_text, uid, mid, reply_markup=markup)
-        last_menu[uid] = mid
-    elif uid in last_menu:
-        bot.edit_message_text(display_text, uid, last_menu[uid], reply_markup=markup)
-    else:
+    try:
+        if mid:
+            bot.edit_message_text(display_text, uid, mid, reply_markup=markup)
+            last_menu[uid] = mid
+        elif uid in last_menu:
+            bot.edit_message_text(display_text, uid, last_menu[uid], reply_markup=markup)
+        else:
+            msg = bot.send_message(uid, display_text, reply_markup=markup)
+            last_menu[uid] = msg.message_id
+    except:
         msg = bot.send_message(uid, display_text, reply_markup=markup)
         last_menu[uid] = msg.message_id
 
@@ -119,8 +130,8 @@ def habit_action_handler(cq):
     mid = cq.message.message_id
     # prepare back button
     back_btn = types.InlineKeyboardButton('🔙 Назад', callback_data='menu:back')
+    name = get_habit_name(hid)
     if action == 'show':
-        name = get_habit_name(hid)
         mk = types.InlineKeyboardMarkup()
         mk.add(types.InlineKeyboardButton('✏️ Переименовать', callback_data=f'habit:rename:{hid}'))
         mk.add(types.InlineKeyboardButton('🗑️ Удалить', callback_data=f'habit:delete:{hid}'))
@@ -146,15 +157,26 @@ def habit_action_handler(cq):
                 'INSERT INTO statuses(habit_id, date, status) VALUES(?,?,?)', (hid, today, status)
             )
             conn.commit()
-        send_main_menu(uid, text=f'🎉 Привычка отмечена как {"✅ done" if status=="done" else "❌ cancel"}.', mid=mid)
+        # send_main_menu(uid, text=f'🎉 Привычка отмечена как {"✅ done" if status=="done" else "❌ cancel"}.', mid=mid)
+        # cq.message.delete()
+        bot.delete_message(uid, cq.message.message_id)
     elif action == 'view':
         statuses = get_statuses(hid)
-        if not statuses:
-            stext = 'ℹ️ Нет записей о статусе для этой привычки.'
-        else:
-            lines = [f'{dt}: {"✅" if st=="done" else "❌"}' for dt, st in statuses]
-            stext = '📊 Статусы:\n' + '\n'.join(lines)
-        send_main_menu(uid, text=stext, mid=mid)
+        statuses = {dt: 1 if st == "done" else 0 for dt, st in statuses}
+        buff = plot_habit_heatmap_binary(
+            statuses,
+            datetime.now().date() - timedelta(days=365),
+            datetime.now().date(),
+            name
+        )
+        buff = io.BytesIO(buff)
+        buff.name = 'heatmap.png'
+
+
+        back_btn = types.InlineKeyboardButton('🔙 Назад', callback_data='menu:back')
+        mk = types.InlineKeyboardMarkup()
+        mk.add(back_btn)
+        bot.send_photo(chat_id=uid, photo=buff, caption='Ваш график за год',reply_markup=mk)
 
 # Next-step handlers
 def create_habit(msg, mid):
@@ -189,7 +211,7 @@ def rename_habit(msg, hid, mid):
 # Daily reminders
 def schedule_reminders():
     now = datetime.now()
-    next_run = datetime.combine(date.today(), dtime(hour=9))
+    next_run = datetime.combine(date.today(), dtime(hour=22))
     if now > next_run:
         next_run = next_run.replace(day=now.day + 1)
     delay = (next_run - now).total_seconds()
@@ -210,10 +232,9 @@ def do_remind():
                 types.InlineKeyboardButton('❌ Cancel', callback_data=f'habit:status:{hid}:cancel')
             )
             mk.add(types.InlineKeyboardButton('🔙 Назад', callback_data='menu:back'))
-            if uid in last_menu:
-                bot.edit_message_text(
-                    f'⏰ Привычка «{name}» на {today}:', uid, last_menu[uid], reply_markup=mk
-                )
+            bot.send_message(
+                chat_id=uid, text=f'⏰ Привычка «{name}» на {today}:', reply_markup=mk
+            )
     schedule_reminders()
 
 # Entry point

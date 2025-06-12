@@ -6,5 +6,5 @@ docker run -d \
 --name habitbot \
 --restart unless-stopped \
 --env-file .env \
--v "$(pwd)/habits.db":/app/habits.db \
+-v "$(pwd)/db":/app \
 hosstell/habitbot:latest

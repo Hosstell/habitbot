@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+docker stop habitbot
+docker rm habitbot
+docker run -d \
+--name habitbot \
+--restart unless-stopped \
+--env-file .env \
+-v "$(pwd)/habits.db":/app/habits.db \
+hosstell/habitbot:latest

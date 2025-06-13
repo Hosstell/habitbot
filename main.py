@@ -32,7 +32,7 @@ storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
 # Database
-db_path = 'habits.db'
+db_path = '/db/habits.db'
 
 def init_db():
     with sqlite3.connect(db_path) as conn:

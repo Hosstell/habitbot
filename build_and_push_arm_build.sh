@@ -2,5 +2,5 @@
 
 set -e
 
-docker build -t hosstell/habitbot::latest .
+docker build -t hosstell/habitbot:latest .
 docker image push hosstell/habitbot:latest

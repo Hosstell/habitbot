@@ -26,10 +26,21 @@ fi
 SERVICE_USER=$SUDO_USER
 # Get the absolute path of the project directory (where this script is located)
 PROJECT_DIR=$(dirname "$(realpath "$0")")
-PYTHON_EXEC="python3"
+PYTHON_EXEC="$PROJECT_DIR/venv/bin/python"
 MAIN_SCRIPT="$PROJECT_DIR/main.py"
 ENV_FILE="$PROJECT_DIR/.env"
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME"
+
+pytnon3 -m venv venv
+source venv/bin/activate
+python3 -m pip install -r requirements.txt
+
+# Check if the required files and directories exist
+if [ ! -d "$PROJECT_DIR/venv" ]; then
+    echo "Error: Virtual environment '.venv' not found in $PROJECT_DIR"
+    echo "Please create it and install dependencies from requirements.txt before running this script."
+    exit 1
+fi
 
 if [ ! -f "$MAIN_SCRIPT" ]; then
     echo "Error: main.py not found at $MAIN_SCRIPT"

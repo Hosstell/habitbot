@@ -31,7 +31,7 @@ MAIN_SCRIPT="$PROJECT_DIR/main.py"
 ENV_FILE="$PROJECT_DIR/.env"
 SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME"
 
-pytnon3 -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 python3 -m pip install -r requirements.txt
 

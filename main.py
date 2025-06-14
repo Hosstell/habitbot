@@ -32,7 +32,7 @@ storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
 # Database
-db_path = '/db/habits.db'
+db_path = './db/habits.db'
 
 def init_db():
     with sqlite3.connect(db_path) as conn:
@@ -270,13 +270,14 @@ async def habit_status_update(cb: CallbackQuery):
     name = get_habit_name(int(hid))
     emoji = '✅' if status == 'done' else '❌'
     await send_main_menu(uid, text=f'{emoji} Статус для привычки «{name}» на {today} обновлён.')
+    await cb.message.delete()
 
 
 # Напоминания
 async def reminder_loop():
     while True:
         now = datetime.now()
-        next_run = datetime.combine(date.today(), dtime(hour=22))
+        next_run = datetime.combine(date.today(), dtime(hour=20))
         if now > next_run:
             next_run += timedelta(days=1)
         await asyncio.sleep((next_run - now).total_seconds())

@@ -245,6 +245,7 @@ async def habit_view(cb: CallbackQuery):
 @dp.callback_query(F.data.startswith('habit:status:'))
 async def habit_status_update(cb: CallbackQuery):
     await cb.answer()
+    await cb.message.delete()
     _, _, hid, status = cb.data.split(':')
     uid = cb.from_user.id
     today = date.today().isoformat()

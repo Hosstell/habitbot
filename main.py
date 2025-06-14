@@ -242,6 +242,36 @@ async def habit_view(cb: CallbackQuery):
     # await bot.send_photo(chat_id=uid, photo=bio, caption='Ваш график за год', reply_markup=markup)
     await bot.send_photo(chat_id=uid, photo=file, caption='Ваш график за год', reply_markup=markup)
 
+@dp.callback_query(F.data.startswith('habit:status:'))
+async def habit_status_update(cb: CallbackQuery):
+    await cb.answer()
+    _, _, hid, status = cb.data.split(':')
+    uid = cb.from_user.id
+    today = date.today().isoformat()
+
+    with sqlite3.connect(db_path) as conn:
+        cur = conn.cursor()
+        # Проверяем, существует ли запись на сегодня
+        existing = cur.execute(
+            'SELECT id FROM statuses WHERE habit_id = ? AND date = ?', (hid, today)
+        ).fetchone()
+
+        if existing:
+            cur.execute(
+                'UPDATE statuses SET status = ? WHERE id = ?', (status, existing[0])
+            )
+        else:
+            cur.execute(
+                'INSERT INTO statuses(habit_id, date, status) VALUES(?, ?, ?)',
+                (hid, today, status)
+            )
+        conn.commit()
+
+    name = get_habit_name(int(hid))
+    emoji = '✅' if status == 'done' else '❌'
+    await send_main_menu(uid, text=f'{emoji} Статус для привычки «{name}» на {today} обновлён.')
+
+
 # Напоминания
 async def reminder_loop():
     while True:
